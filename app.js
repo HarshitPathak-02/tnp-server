@@ -6,7 +6,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 
 const session = require("express-session");
-const flash = require("connect-flash");
 
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
@@ -20,7 +19,7 @@ const { saveRedirectUrl, isLoggedIn } = require("./middleware");
 const app = express();
 
 const cors = require("cors");
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -53,7 +52,6 @@ const sessionOptions = {
 };
 
 app.use(session(sessionOptions));
-app.use(flash());
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -62,16 +60,19 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-app.use((req, res, next) => {
-  res.locals.success = req.flash("success");
-  res.locals.error = req.flash("error");
-  res.locals.currUser = req.user;
-  next();
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "harshithogya.hp@gmail.com",
+    pass: "rtei wskq uldz rsnu",
+  },
 });
 
-app.get("/",(req,res)=>{
-  res.send('backend ok')
-})
+app.get("/", (req, res) => {
+  res.send("backend ok");
+});
 
 app.post(
   "/signup",
@@ -87,11 +88,11 @@ app.post(
         enrollment,
         password,
       } = req.body;
-  
+
       const existingUser = await User.findOne({
         $or: [{ email }, { enrollment }],
       });
-  
+
       if (existingUser) {
         return res
           .status(400)
@@ -108,16 +109,43 @@ app.post(
         password,
       });
       const regsiteredUser = await User.register(newUser, password);
-      res.json({msg:"registered"});
+      res.json({ msg: "registered" });
     } catch (e) {
       console.log(e);
-      res.json({error:e})
+      res.json({ error: e });
     }
     // console.log(regsiteredUser);
   })
 );
 
-app.post("/signin", passport.authenticate("local"),(req,res)=>{
-    res.json({msg:'done'})
-  }
-)
+app.post("/signin", passport.authenticate("local"), (req, res) => {
+  res.json({ msg: "done" });
+});
+
+
+app.post("/contact-us", async (req, res) => {
+  const { name,email,message,city,organization } = req.body;
+
+  const mailOptions = {
+    from: email,
+    to: 'rashijain22062004@gmail.com',
+    subject: `Message from ${email}`,
+    text: `
+    Name: ${name}
+    
+    Email: ${email}
+    
+    Messsage: ${message}
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Eamil sent to admin successfully');
+    return res.json({msg:'contact-form-saved'})
+
+} catch (error) {
+    console.log('Email send failed with error:', error);
+    return res.json({msg:"contact form can not be send"})
+}
+});
