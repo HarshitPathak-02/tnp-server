@@ -128,7 +128,7 @@ app.post("/contact-us", async (req, res) => {
 
   const mailOptions = {
     from: email,
-    to: 'rashijain22062004@gmail.com',
+    to: 'harshithogya.hp@gmail.com',
     subject: `Message from ${email}`,
     text: `
     Name: ${name}
