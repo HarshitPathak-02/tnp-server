@@ -61,6 +61,7 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 const nodemailer = require("nodemailer");
+const TcsTestQuestion = require("./models/tcsTestQuestions");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -149,3 +150,10 @@ app.post("/contact-us", async (req, res) => {
     return res.json({msg:"contact form can not be send"})
 }
 });
+
+app.get("/test-data", async (req,res)=>{
+  let testData = await TcsTestQuestion.find();
+  // const data = User.find({});
+  // console.log(testData);
+  res.json({data:testData})
+})
