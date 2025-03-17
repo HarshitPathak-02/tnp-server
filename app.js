@@ -11,6 +11,7 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local");
 
 const User = require("./models/user");
+const Result = require("./models/result")
 
 const wrapAsync = require("./utils/wrapAsync");
 const ExpressError = require("./utils/ExpressError");
@@ -43,7 +44,7 @@ app.listen((port = 8000), (req, res) => {
 const sessionOptions = {
   secret: "secretcodeforme",
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: {
     expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
     maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -61,7 +62,7 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 const nodemailer = require("nodemailer");
-const TcsTestQuestion = require("./models/tcsTestQuestions");
+const TestQuestion = require("./models/testQuestions");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -120,16 +121,26 @@ app.post(
 );
 
 app.post("/signin", passport.authenticate("local"), (req, res) => {
-  res.json({ msg: "done" });
+  // console.log("signied user", req.user);
+  res.json({ msg: "done", user: req.user });
 });
 
+app.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      res.json({ msg: "noLoggedOut" });
+      return next(err);
+    }
+    res.json({ msg: "loggedOut" });
+  });
+});
 
 app.post("/contact-us", async (req, res) => {
-  const { name,email,message,city,organization } = req.body;
+  const { name, email, message, city, organization } = req.body;
 
   const mailOptions = {
     from: email,
-    to: 'harshithogya.hp@gmail.com',
+    to: "harshithogya.hp@gmail.com",
     subject: `Message from ${email}`,
     text: `
     Name: ${name}
@@ -142,18 +153,43 @@ app.post("/contact-us", async (req, res) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log('Eamil sent to admin successfully');
-    return res.json({msg:'contact-form-saved'})
-
-} catch (error) {
-    console.log('Email send failed with error:', error);
-    return res.json({msg:"contact form can not be send"})
-}
+    console.log("Eamil sent to admin successfully");
+    return res.json({ msg: "contact-form-saved" });
+  } catch (error) {
+    console.log("Email send failed with error:", error);
+    return res.json({ msg: "contact form can not be send" });
+  }
 });
 
-app.get("/test-data", async (req,res)=>{
-  let testData = await TcsTestQuestion.find();
+app.get("/:company/:testName", async (req, res) => {
+  const { company, testName } = req.params;
+  const testData = await TestQuestion.find({
+    $or: [{ company }, { testName }],
+  });
   // const data = User.find({});
   // console.log(testData);
-  res.json({data:testData})
-})
+  res.json({ data: testData });
+});
+
+
+app.post("/test/submit", async (req,res)=>{
+  try {
+    const { enrollment, marks, company, testName, time, date } = req.body;
+
+    // Create a new result entry
+    const newResult = new Result({
+      enrollment,
+      marks,
+      company,
+      test_name:testName,
+      time,
+      date
+    });
+
+    await newResult.save();
+    res.json({ message: "Test result saved successfully!" });
+  } catch (error) {
+    console.error("Error saving test result:", error);
+    res.json({ message: "Server error" });
+  }
+});

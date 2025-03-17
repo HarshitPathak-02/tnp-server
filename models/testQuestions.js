@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const tcsTestQuestionsSchema = new Schema({
+const TestQuestionsSchema = new Schema({
     question: {
         type: String,
         required: true,
@@ -14,11 +14,19 @@ const tcsTestQuestionsSchema = new Schema({
         type: [String],
         required: true,
     },
+    company: {
+        type: String,
+        required: true,
+    },
+    test_name: {
+        type: String,
+        required: true,
+    },
 })
 
 
-const TcsTestQuestion = mongoose.model("TcsTestQuestion", tcsTestQuestionsSchema);
+const TestQuestion = mongoose.model("TestQuestion", TestQuestionsSchema);
 
-module.exports = TcsTestQuestion;
+module.exports = TestQuestion;
 
 
