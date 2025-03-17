@@ -170,6 +170,16 @@ app.get("/:company/:testName", async (req, res) => {
   // console.log(testData);
   res.json({ data: testData });
 });
+app.get("/:company/:enrollment", async (req, res) => {
+  const { company, enrollment } = req.params;
+  const testHistoryData = await Result.find({
+    $or: [{ company }, { enrollment }],
+  });
+  // const data = User.find({});
+  // console.log(testData);
+  res.json({ data: testHistoryData });
+});
+
 
 
 app.post("/test/submit", async (req,res)=>{
