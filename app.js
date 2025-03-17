@@ -170,25 +170,28 @@ app.get("/:company/:testName", async (req, res) => {
   // console.log(testData);
   res.json({ data: testData });
 });
-app.get("/:company/:enrollment", async (req, res) => {
-  const { company, enrollment } = req.params;
-  const testHistoryData = await Result.find({
-    $or: [{ company }, { enrollment }],
-  });
+
+
+app.get("/test-history", async (req, res) => {
+  const { username } = req.query;
+  const testHistoryData = await Result.find({ username:username });
+//   const formattedData = testHistoryData.map((item) => ({
+//     ...item._doc,
+//     date: item.date.toISOString().split("T")[0]  // Extract YYYY-MM-DD
+// }));
   // const data = User.find({});
-  // console.log(testData);
+  // console.log("test history data", testHistoryData);
   res.json({ data: testHistoryData });
 });
 
 
-
 app.post("/test/submit", async (req,res)=>{
   try {
-    const { enrollment, marks, company, testName, time, date } = req.body;
+    const { username, marks, company, testName, time, date } = req.body;
 
     // Create a new result entry
     const newResult = new Result({
-      enrollment,
+      username,
       marks,
       company,
       test_name:testName,

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const resultSchema = new Schema({
-    enrollment: {
+    username: {
         type: String,
         required: true,
     },
