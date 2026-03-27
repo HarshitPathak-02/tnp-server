@@ -74,13 +74,6 @@ tcsAptitudeQuestions = [
     company: "tcs",
     test_name: "tcs-aptitude",
   },
-  {
-    question: "Do you want to submit the test?",
-    options: ["Yes", "No"],
-    correct_option: "Yes/No",
-    company: "tcs",
-    test_name: "tcs-aptitude",
-  },
 ];
 //   {
 //     question:

@@ -4,7 +4,7 @@ const tcsAptitudeQuestions = require("./data");
 const TestQuestion = require("../models/testQuestions");
 
 async function main() {
-  await mongoose.connect("mongodb+srv://mrpathak07:g8TuRqcu71z2Sk5Q@cluster0.xutne.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+  await mongoose.connect("");
 }
 
 main()
@@ -16,7 +16,7 @@ main()
   });
 
 const initDB = async () => {
-  await TestQuestion.deleteMany({});
+  // await TestQuestion.deleteMany({});
   await TestQuestion.insertMany(tcsAptitudeQuestions.tcsAptitudeQuestions);
   console.log("data is initialized");
 };

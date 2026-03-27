@@ -11,7 +11,9 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local");
 
 const User = require("./models/user");
-const Result = require("./models/result")
+const Result = require("./models/result");
+
+const generateAIAnalysis = require("./services/ai-analysis");
 
 const wrapAsync = require("./utils/wrapAsync");
 const ExpressError = require("./utils/ExpressError");
@@ -63,6 +65,7 @@ passport.deserializeUser(User.deserializeUser());
 
 const nodemailer = require("nodemailer");
 const TestQuestion = require("./models/testQuestions");
+const Tests = require("./models/Tests");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -117,11 +120,11 @@ app.post(
       res.json({ error: e });
     }
     // console.log(regsiteredUser);
-  })
+  }),
 );
 
 app.post("/signin", passport.authenticate("local"), (req, res) => {
-  // console.log("signied user", req.user);
+  console.log("signied user", req.user);
   res.json({ msg: "done", user: req.user });
 });
 
@@ -161,6 +164,23 @@ app.post("/contact-us", async (req, res) => {
   }
 });
 
+app.get("/test-analysis/:id", async (req, res) => {
+  console.log("hit test-analysis");
+
+  const { id } = req.params;
+  console.log("id:", id);
+
+  const test = await Result.findById(id);
+
+  console.log("testt:", test);
+
+  if (!test) {
+    return res.status(404).json({ error: "Test not found" });
+  }
+
+  res.json({ data: test });
+});
+
 app.get("/:company/:testName", async (req, res) => {
   const { company, testName } = req.params;
   const testData = await TestQuestion.find({
@@ -171,38 +191,60 @@ app.get("/:company/:testName", async (req, res) => {
   res.json({ data: testData });
 });
 
-
 app.get("/test-history", async (req, res) => {
+  console.log("hit test historty");
   const { username } = req.query;
-  const testHistoryData = await Result.find({ username:username });
-//   const formattedData = testHistoryData.map((item) => ({
-//     ...item._doc,
-//     date: item.date.toISOString().split("T")[0]  // Extract YYYY-MM-DD
-// }));
+  const testHistoryData = await Result.find({ username: username });
+  //   const formattedData = testHistoryData.map((item) => ({
+  //     ...item._doc,
+  //     date: item.date.toISOString().split("T")[0]  // Extract YYYY-MM-DD
+  // }));
   // const data = User.find({});
   // console.log("test history data", testHistoryData);
   res.json({ data: testHistoryData });
 });
 
-
-app.post("/test/submit", async (req,res)=>{
+app.post("/submit", async (req, res) => {
   try {
-    const { username, marks, company, testName, time, date } = req.body;
+    const { username, testName, company, answers, marks } = req.body;
 
-    // Create a new result entry
-    const newResult = new Result({
+    let aiAnalysis;
+
+    try {
+      // 🔥 Try AI
+      aiAnalysis = await generateAIAnalysis({
+        test_name: testName,
+        company,
+        answers,
+      });
+    } catch (aiError) {
+      console.error("AI failed:", aiError.message);
+
+      // ✅ Fallback analysis (important)
+      aiAnalysis = JSON.stringify({
+        strengths: ["AI unavailable currently"],
+        weaknesses: ["Detailed analysis not generated"],
+        timeAnalysis: "Time analysis unavailable",
+        accuracyAnalysis: "Accuracy analysis unavailable",
+        examReadiness: "AI service unavailable",
+        improvementTips: ["Please try again later"],
+        recommendedFocusTopics: [],
+      });
+    }
+
+    const newTest = await Result.create({
       username,
-      marks,
+      test_name: testName,
       company,
-      test_name:testName,
-      time,
-      date
+      marks,
+      answers,
+      aiAnalysis,
+      date: new Date(),
     });
 
-    await newResult.save();
-    res.json({ message: "Test result saved successfully!" });
-  } catch (error) {
-    console.error("Error saving test result:", error);
-    res.json({ message: "Server error" });
+    res.json({ success: true, data: newTest });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Test submission failed" });
   }
 });
