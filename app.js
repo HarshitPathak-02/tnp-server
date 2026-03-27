@@ -44,7 +44,7 @@ app.listen((port = 8000), (req, res) => {
 });
 
 const sessionOptions = {
-  secret: "secretcodeforme",
+  secret: "",
   resave: false,
   saveUninitialized: false,
   cookie: {
