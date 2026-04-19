@@ -2,6 +2,7 @@ if (process.env.NODE_ENV != "production") {
   require("dotenv").config();
 }
 
+const axios = require("axios");
 const express = require("express");
 const mongoose = require("mongoose");
 
@@ -12,6 +13,7 @@ const LocalStrategy = require("passport-local");
 
 const User = require("./models/user");
 const Result = require("./models/result");
+const CodingQuestion = require("./models/codingQuestions");
 
 const generateAIAnalysis = require("./services/ai-analysis");
 
@@ -44,7 +46,7 @@ app.listen((port = 8000), (req, res) => {
 });
 
 const sessionOptions = {
-  secret: "",
+  secret: "secretcodeforme",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -164,6 +166,18 @@ app.post("/contact-us", async (req, res) => {
   }
 });
 
+app.get("/coding/:company/:testName", async (req, res) => {
+  console.log("hit coding questions");
+  const { company, testName } = req.params;
+
+  const questions = await CodingQuestion.find({
+    company,
+    test_name: testName,
+  });
+  console.log("questions:", questions);
+  res.json({ data: questions });
+});
+
 app.get("/test-analysis/:id", async (req, res) => {
   console.log("hit test-analysis");
 
@@ -204,47 +218,131 @@ app.get("/test-history", async (req, res) => {
   res.json({ data: testHistoryData });
 });
 
+app.post("/run-code", async (req, res) => {
+  const { code, language, input } = req.body;
+
+  try {
+    const response = await axios.post(
+      "https://ce.judge0.com/submissions?base64_encoded=false&wait=true",
+      {
+        source_code: code,
+        language_id: language,
+        stdin: input || "",
+      },
+      {
+        headers: {
+          "X-RapidAPI-Key":
+            "",
+          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        },
+      },
+    );
+
+    res.json(response.data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Execution failed" });
+  }
+});
+
+app.post("/evaluate-code", async (req, res) => {
+  const { code, language, questionId } = req.body;
+
+  try {
+    const question = await Question.findById(questionId);
+
+    let passed = 0;
+    let results = [];
+
+    for (let testCase of question.testCases) {
+      const response = await axios.post(
+        "https://ce.judge0.com/submissions?base64_encoded=false&wait=true",
+        {
+          source_code: code,
+          language_id: language,
+          stdin: testCase.input,
+        },
+        {
+          headers: {
+            "X-RapidAPI-Key":
+              "",
+            "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+          },
+        },
+      );
+
+      const output = response.data.stdout?.trim();
+
+      const isCorrect = output === testCase.output;
+
+      if (isCorrect) passed++;
+
+      results.push({
+        input: testCase.input,
+        expected: testCase.output,
+        output,
+        passed: isCorrect,
+      });
+    }
+
+    const total = question.testCases.length;
+    const score = (passed / total) * 100;
+
+    res.json({
+      score,
+      passed,
+      total,
+      results,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Evaluation failed" });
+  }
+});
+
 app.post("/submit", async (req, res) => {
   try {
-    const { username, testName, company, answers, marks } = req.body;
+    const {
+      username,
+      testName,
+      company,
+      test_type,
+      answers,
+      codingAnswers,
+      marks,
+    } = req.body;
 
     let aiAnalysis;
 
     try {
-      // 🔥 Try AI
       aiAnalysis = await generateAIAnalysis({
         test_name: testName,
         company,
         answers,
+        codingAnswers,
       });
-    } catch (aiError) {
-      console.error("AI failed:", aiError.message);
-
-      // ✅ Fallback analysis (important)
+    } catch (err) {
       aiAnalysis = JSON.stringify({
-        strengths: ["AI unavailable currently"],
-        weaknesses: ["Detailed analysis not generated"],
-        timeAnalysis: "Time analysis unavailable",
-        accuracyAnalysis: "Accuracy analysis unavailable",
-        examReadiness: "AI service unavailable",
-        improvementTips: ["Please try again later"],
-        recommendedFocusTopics: [],
+        strengths: ["AI unavailable"],
+        weaknesses: ["No analysis available"],
       });
     }
 
-    const newTest = await Result.create({
+    const newResult = await Result.create({
       username,
       test_name: testName,
       company,
+      test_type,
       marks,
-      answers,
+      answers: answers || [],
+      codingAnswers: codingAnswers || [],
       aiAnalysis,
       date: new Date(),
     });
 
-    res.json({ success: true, data: newTest });
+    res.json({ success: true, data: newResult });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Test submission failed" });
+    res.status(500).json({ error: "Submission failed" });
   }
 });
